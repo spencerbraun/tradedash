@@ -1,5 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+Central script for running Dash app.
+date: 20190618
+author: spencerbraun
+"""
+
+import argparse
+import datetime
+
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -8,137 +17,142 @@ from dash.dependencies import Input, Output, State
 import pandas as pd
 import plotly.graph_objs as go
 
+import dash_wrappers as dw
 from dataHandler import TimeData, spreadFrame
 
-testdate = 20190614
-testname = 'treasuryyields'
-
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-
+external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+colors = {"background": "#E0E0E2", "text": "#050949"}
+
+def main():
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument(
+        "-d",
+        "--date",
+        type=str,
+        help="an integer for the accumulator"
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        default=False,
+        help="sum the integers (default: find the max)",
+    )
+    args = parser.parse_args()
+
+    if not args.date:
+        date = datetime.datetime.today()
 
 
-colors = {
-    'background': '#E0E0E2',
-    'text': '#050949'
-}
+    df = TimeData(date, 'treasuryyields', lookback=252).frame()
+    pairs = [("10_yr", "2_yr"), ("10_yr", "6_mo"), ("5_yr", "2_yr")]
+    spreads = spreadFrame(df.copy(), pairs)
+    curves = df.set_index("date").tail().T
 
+    markdown_text = """
+    ### Dash and Markdown
+    Dash uses the [CommonMark](http://commonmark.org/)
+    Check out their [60 Second Markdown Tutorial](http://commonmark.org/help/)
+    """
 
-df = TimeData(testdate, testname, lookback=252).frame()
-pairs = [('10_yr', '2_yr'), ('10_yr', '6_mo'), ('5_yr', '2_yr')]
-spreads = spreadFrame(df.copy(), pairs)
-curves = df.set_index('date').tail().T
-
-markdown_text = '''
-### Dash and Markdown
-Dash uses the [CommonMark](http://commonmark.org/)
-Check out their [60 Second Markdown Tutorial](http://commonmark.org/help/)
-'''
-
-def generate_table(dataframe, max_rows=10):
-    return html.Table(
-        # Header
-        [html.Tr([html.Th(col) for col in dataframe.columns])] +
-
-        # Body
-        [html.Tr([
-            html.Td(dataframe.iloc[i][col]) for col in dataframe.columns
-        ]) for i in range(min(len(dataframe), max_rows))]
+    app.layout = html.Div(
+        style={"backgroundColor": colors["background"]},
+        children=[
+            html.H1(
+                children="Treasury Yields",
+                style={"textAlign": "left", "color": colors["text"]},
+            ),
+            html.Div(
+                children="Yield Curves",
+                style={"textAlign": "center", "color": colors["text"]},
+            ),
+            dcc.Dropdown(
+                id="maturity-select",
+                options=[
+                    {"label": name.replace("_", " "), "value": name}
+                    for name in df.columns
+                    if name != "date"
+                ],
+                multi=True,
+                value=[name for name in df.columns if name != "date"],
+            ),
+            dcc.Graph(id="all-yields"),
+            dcc.Dropdown(
+                id="maturity-spread-select",
+                options=[
+                    {"label": name.replace("_", " "), "value": name}
+                    for name in spreads.columns
+                    if name != "date"
+                ],
+                multi=True,
+                value=[name for name in spreads.columns if name != "date"],
+            ),
+            dcc.Graph(id="custom-yield-spreads"),
+            dcc.Graph(
+                id="yield-curve",
+                figure={
+                    "data": [
+                        go.Scatter(
+                            x=[x.replace("_", " ") for x in curves.index],
+                            y=curves[i],
+                            text=i.strftime("%b %d, %Y"),
+                            mode="lines",
+                            opacity=0.7,
+                            marker={"size": 15, "line": {"width": 0.5, "color": "white"}},
+                            name=i.strftime("%b %d, %Y"),
+                        )
+                        for i in curves.columns
+                    ],
+                    "layout": dw.layout("Maturity", "Yield (%)"),
+                },
+            ),
+        ],
     )
 
-app.layout = html.Div(style={'backgroundColor': colors['background']}, children=[
-    html.H1(
-        children='Treasury Yields',
-        style={
-            'textAlign': 'left',
-            'color': colors['text']
-        }
-    ),
 
-    html.Div(children='Yield Curves', style={
-        'textAlign': 'center',
-        'color': colors['text']
-    }),
-
-    dcc.Graph(
-        id='all-yields',
-        figure={
-            'data': [
+    @app.callback(
+        Output("custom-yield-spreads", "figure"), [Input("maturity-spread-select", "value")]
+    )
+    def updateYieldSpreads(selectedSpreads):
+        filtered_df = spreads[["date"] + selectedSpreads]
+        traces = []
+        for spread in selectedSpreads:
+            traces.append(
                 go.Scatter(
-                    x=df['date'],
-                    y=df[i],
-                    text=i.replace('_', ' '),
-                    mode='lines',
+                    x=filtered_df["date"],
+                    y=filtered_df[spread],
+                    text=spread.replace("_", " "),
+                    mode="lines",
                     opacity=0.7,
-                    marker={
-                        'size': 15,
-                        'line': {'width': 0.5, 'color': 'white'}
-                    },
-                    name=i.replace('_', ' ')
-                ) for i in df.columns if i != 'date'
-            ],
-            'layout': go.Layout(
-                yaxis={'title': 'Yield (%)'},
-                margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
-                legend={'x': 0, 'y': 1},
-                hovermode='closest'
+                    marker={"size": 15, "line": {"width": 0.5, "color": "white"}},
+                    name=spread.replace("_", " "),
+                )
             )
-        }
-    ),
 
-    dcc.Graph(
-        id='yields-spreads',
-        figure={
-            'data': [
+        return {"data": traces, "layout": dw.layout("Date", "Yield Spread (%)")}
+
+
+    @app.callback(Output("all-yields", "figure"), [Input("maturity-select", "value")])
+    def updateAllYields(maturities):
+        filtered_df = df[["date"] + maturities]
+        traces = []
+        for term in maturities:
+            traces.append(
                 go.Scatter(
-                    x=spreads['date'],
-                    y=spreads[i],
-                    text=i.replace('_', ' '),
-                    mode='lines',
+                    x=filtered_df["date"],
+                    y=filtered_df[term],
+                    text=term.replace("_", " "),
+                    mode="lines",
                     opacity=0.7,
-                    marker={
-                        'size': 15,
-                        'line': {'width': 0.5, 'color': 'white'}
-                    },
-                    name=i.replace('_', ' ')
-                ) for i in spreads.columns if i != 'date'
-            ],
-            'layout': go.Layout(
-                yaxis={'title': 'Yield Spread (%)'},
-                margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
-                legend={'x': 0, 'y': 1},
-                hovermode='closest'
+                    marker={"size": 15, "line": {"width": 0.5, "color": "white"}},
+                    name=term.replace("_", " "),
+                )
             )
-        }
-    ),
 
-    dcc.Graph(
-        id='yield-curve',
-        figure={
-            'data': [
-                go.Scatter(
-                        x=[x.replace('_', ' ') for x in curves.index],
-                    y=curves[i],
-                    text=i.strftime('%b %d, %Y'),
-                    mode='lines',
-                    opacity=0.7,
-                    marker={
-                        'size': 15,
-                        'line': {'width': 0.5, 'color': 'white'}
-                    },
-                    name=i.strftime('%b %d, %Y')
-                ) for i in curves.columns
-            ],
-            'layout': go.Layout(
-                xaxis={'title': 'Maturity'},
-                yaxis={'title': 'Yield (%)'},
-                margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
-                legend={'x': 0, 'y': 1},
-                hovermode='closest'
-            )
-        }
-    ),
-])
+        return {"data": traces, "layout": dw.layout("Date", "Yield (%)")}
 
-if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=args.debug)
+
+
+if __name__ == "__main__":
+    main()
