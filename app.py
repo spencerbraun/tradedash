@@ -16,6 +16,7 @@ from dash.dependencies import Input, Output, State
 
 import pandas as pd
 import plotly.graph_objs as go
+from textwrap import dedent
 
 import dash_wrappers as dw
 from dataHandler import TimeData, spreadFrame
@@ -62,9 +63,14 @@ def main():
                 children="Treasury Yields",
                 style={"textAlign": "left", "color": colors["text"]},
             ),
-            html.Div(
-                children="Yield Curves",
-                style={"textAlign": "center", "color": colors["text"]},
+            dcc.Markdown(
+                dedent('''
+                \n\n
+                ##### Historical Yields
+                Access Treasury yields across all maturities. All data is pulled from the Treasury's
+                EOD [published](https://www.treasury.gov/resource-center/data-chart-center/interest-rates/pages/textview.aspx?data=yield)
+                yield curve rates.
+                ''')
             ),
             dcc.Dropdown(
                 id="maturity-select",
@@ -77,6 +83,14 @@ def main():
                 value=[name for name in df.columns if name != "date"],
             ),
             dcc.Graph(id="all-yields"),
+            dcc.Markdown(
+                dedent('''
+                \n\n
+                ##### Yield Spreads
+                Plots the spread between different maturities in the yield curve on a given date.
+                A value below 0 indicates an inversion in the maturity pair selected.
+                ''')
+            ),
             dcc.Dropdown(
                 id="maturity-spread-select",
                 options=[
@@ -88,6 +102,14 @@ def main():
                 value=[name for name in spreads.columns if name != "date"],
             ),
             dcc.Graph(id="custom-yield-spreads"),
+            dcc.Markdown(
+                dedent('''
+                \n\n
+                ##### Yield Curve
+                Plots the yield curve on a selected date. The yields used are EOD and are
+                published by the Treasury.
+                ''')
+            ),
             dcc.Graph(
                 id="yield-curve",
                 figure={
