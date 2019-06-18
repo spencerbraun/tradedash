@@ -27,6 +27,7 @@ colors = {
 df = TimeData(testdate, testname, lookback=252).frame()
 pairs = [('10_yr', '2_yr'), ('10_yr', '6_mo'), ('5_yr', '2_yr')]
 spreads = spreadFrame(df.copy(), pairs)
+curves = df.set_index('date').tail().T
 
 markdown_text = '''
 ### Dash and Markdown
@@ -77,7 +78,6 @@ app.layout = html.Div(style={'backgroundColor': colors['background']}, children=
                 ) for i in df.columns if i != 'date'
             ],
             'layout': go.Layout(
-                xaxis={'title': 'Date'},
                 yaxis={'title': 'Yield (%)'},
                 margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
                 legend={'x': 0, 'y': 1},
@@ -104,8 +104,34 @@ app.layout = html.Div(style={'backgroundColor': colors['background']}, children=
                 ) for i in spreads.columns if i != 'date'
             ],
             'layout': go.Layout(
-                xaxis={'title': 'Date'},
                 yaxis={'title': 'Yield Spread (%)'},
+                margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
+                legend={'x': 0, 'y': 1},
+                hovermode='closest'
+            )
+        }
+    ),
+
+    dcc.Graph(
+        id='yield-curve',
+        figure={
+            'data': [
+                go.Scatter(
+                        x=[x.replace('_', ' ') for x in curves.index],
+                    y=curves[i],
+                    text=i.strftime('%b %d, %Y'),
+                    mode='lines',
+                    opacity=0.7,
+                    marker={
+                        'size': 15,
+                        'line': {'width': 0.5, 'color': 'white'}
+                    },
+                    name=i.strftime('%b %d, %Y')
+                ) for i in curves.columns
+            ],
+            'layout': go.Layout(
+                xaxis={'title': 'Maturity'},
+                yaxis={'title': 'Yield (%)'},
                 margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
                 legend={'x': 0, 'y': 1},
                 hovermode='closest'
