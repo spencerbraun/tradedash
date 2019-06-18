@@ -98,6 +98,18 @@ class TimeData(object):
         return self.loadExistingData()
 
 
+def spreadFrame(df:pd.DataFrame, pairs:list) -> pd.DataFrame:
+    
+    columns = ['date']
+    for (high, low) in pairs:
+        df[f'{high} - {low}'] = df[high] - df[low]
+        columns.append(f'{high} - {low}')
+
+    return df[columns]
+
+
+
+
 
 if __name__ == "__main__":
 
