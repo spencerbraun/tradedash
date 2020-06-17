@@ -50,11 +50,6 @@ def main():
     spreads = spreadFrame(df.copy(), pairs)
     curves = df.set_index("date").tail().T
 
-    markdown_text = """
-    ### Dash and Markdown
-    Dash uses the [CommonMark](http://commonmark.org/)
-    Check out their [60 Second Markdown Tutorial](http://commonmark.org/help/)
-    """
 
     app.layout = html.Div(
         style={"backgroundColor": colors["background"]},

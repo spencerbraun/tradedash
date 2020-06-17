@@ -24,7 +24,7 @@ class TimeData(object):
         self.lookback = lookback
         self.dataname = dataname
         self.path = self.localPath()
-        self.link = self.remotePath(2019)
+        self.link = self.remotePath(2020)
 
     @staticmethod
     def dateParse(date) -> datetime:
@@ -113,5 +113,5 @@ def spreadFrame(df:pd.DataFrame, pairs:list) -> pd.DataFrame:
 
 if __name__ == "__main__":
 
-    data = TimeData(20190615, 'treasuryyields')
+    data = TimeData(20200227, 'treasuryyields')
     print(data.frame().to_string(index=False))
